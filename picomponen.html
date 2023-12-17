@@ -1,0 +1,539 @@
+{% extends "basecogm.html" %}
+{% load static %}
+{% block content %}
+<style>
+    .select2-container .select2-selection--single {
+        height: 38px;
+        font-size: 16px;
+        width: 100%;
+    }
+
+    .select2-container--default .select2-selection--single {
+        padding-top: 5px;
+        border-color: #CED4DA;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__placeholder {
+        color: #51585E;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        margin-top: 5px;
+    }
+</style>
+
+<div class="container-fluid">
+    <!-- Page Heading -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">{{ judul }}</h1>
+    </div>
+    <!-- Content Row -->
+    <div class="col-md-12">
+        <div class="row mb-3">
+            <div class="col-md-2">
+                <button type="button" style="width:100%;" class="btn btn-primary" onclick="tambahData()"><i class="fa fa-plus"></i> Add Data</button>
+            </div>
+        </div>
+        <table id="material-table" class="display" style="width:100%">
+            <thead>
+                <tr>
+                    <th class="text-center" style="width: 40%;">Component Name</th>
+                    <th class="text-center">Component Cost (RP)</th>
+                    <th class="text-center">Update Date</th>
+                    <th class="text-center">Action</th>
+                </tr>
+            </thead>
+        </table>        
+    </div>
+</div>
+
+<!-- Modal Tambah -->
+<div class="modal fade" id="modalTambah">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <h4 class="modal-title"><span id="judulmodal"></span> PI Component Data</h4>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <!-- Modal body -->
+            <form method="post" id="form_id">
+                {% csrf_token %}
+                <div class="modal-body">
+                <!-- Form untuk input data PI Componen -->
+                    <input type="hidden" name="id_komponen_pi" id="id_komponen_pi">
+                    <div class="row">
+                        <!-- <div class="form-group col-md-2">
+                            <label for="nopart">No Part</label>
+                            <input type="text" class="form-control" name="nopart" id="nopart" autocomplete="off" required onkeyup="this.value = this.value.toUpperCase();">
+                        </div> -->
+                        <div class="form-group col-md-4">
+                            <label for="nama">Component Name</label>
+                            <input type="text" class="form-control" name="nama" id="nama" autocomplete="off" required onkeyup="this.value = this.value.toUpperCase();">
+                        </div>
+                        <div class="form-group col-md-2">
+                            <label for="penggunaan">Usage (KG)</label>
+                            <input type="text" class="form-control" name="penggunaan" id="penggunaan" autocomplete="off" required onchange="recalculateCost()">
+                        </div>
+                        <div class="form-group col-md-2">
+                            <label for="cavity">Cavity</label>
+                            <input type="number" class="form-control" name="cavity" id="cavity" autocomplete="off" required onchange="costMesin()">
+                        </div>
+                        <div class="form-group col-md-2">
+                            <label for="tonage">Tonnage Machine</label>
+                            <select name="tonage" id="tonage" class="form-control select2" style="width: 100%;" required onchange="costMesin()">
+                                <option value=""></option>
+                                {% for mesin in all_mesin %}
+                                    <option value="{{ mesin.id_mesin}}" costmesin="{{ mesin.cost_mesin}}" costcooling="{{ mesin.cost_cooling}}">{{ mesin.machine_tonage }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group col-md-2">
+                            <label for="cycletime">Cycle Time</label>
+                            <input type="number" class="form-control" name="cycletime" id="cycletime" autocomplete="off" required onchange="costMesin()">
+                        </div>
+                        <div class="form-group col-md-2">
+                            <label for="costmesin">Machine Cost</label>
+                            <input type="text" class="form-control" name="costmesin" id="costmesin" autocomplete="off" readonly>
+                        </div>
+                        <div class="form-group col-md-2">
+                            <label for="costcooling">Cooling Cost</label>
+                            <input type="text" class="form-control" name="costcooling" id="costcooling" autocomplete="off" readonly>
+                        </div>
+                        <div class="form-group col-md-3">
+                            <label for="periode">Cost Material Period</label>
+                            <input type="date" class="form-control" name="periode" id="periode" onchange="recalculateCost()">
+                        </div>
+                    </div>
+                    <button type="button" style="width:15%; margin-top: 20px;" class="btn btn-primary" onclick="addMaterial()"><i class="fa fa-plus"></i> Add Material</button> 
+                    <table class="table mt-3" id="tableAddMaterial">
+                        <thead>
+                            <tr>
+                                <th style="text-align: center; width: 40%;">Material</th>
+                                <th style="text-align: center; width: 9%;">%</th>
+                                <th style="text-align: center;">Usage (KG)</th>
+                                <th style="text-align: center;">Rp/KG</th>
+                                <th style="text-align: center;">Rp/Part</th>
+                                <th style="text-align: center;">Delete</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbodyMaterial">
+                        </tbody>
+                    </table>
+                </div>
+                <!-- Modal footer -->
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Submit</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal To Component -->
+<div class="modal fade" id="modalToComponent">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <h4 class="modal-title"><span id="judulmodal"></span> Export To Component PI Out House</h4>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <!-- Modal body -->
+            <form method="post" id="form_tocomp">
+                {% csrf_token %}
+                <div class="modal-body">
+                <!-- Form untuk input data Komponen -->
+                    <div class="form-group">
+                        <label for="nosapcomp">No SAP</label>
+                        <input type="text" class="form-control" name="nosapcomp" id="nosapcomp" autocomplete="off">
+                    </div>
+                    <div class="form-group">
+                        <label for="statuscomp">Status</label>
+                        <select name="statuscomp" id="statuscomp" class="form-control select2" style="width:100%;" disabled>
+                            <option value="OUT" selected>PI Out House</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="namacomp">Component Name</label>
+                        <input type="text" class="form-control" name="namacomp" id="namacomp" autocomplete="off" required onkeyup="this.value = this.value.toUpperCase();">
+                    </div>
+                    <div class="form-group">
+                        <label for="currcomp">Currency</label>
+                        <input type="text" class="form-control" id="currcomp" name="currcomp" value="IDR" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label for="rupiahcomp">Cost (Rupiah)</label>
+                        <input type="text" class="form-control" name="rupiahcomp" id="rupiahcomp">
+                    </div>
+                    <div class="form-group">
+                        <label for="satuancomp">Unit</label>
+                        <input type="text" class="form-control" id="satuancomp" name="satuancomp" value="PCS" readonly>
+                    </div>
+                </div>
+                <!-- Modal footer -->
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Submit</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    $(document).ready(function() { 
+        document.getElementById("form_id").addEventListener("submit", (e) => {
+            e.preventDefault()
+            validate()
+        })
+        document.getElementById("form_tocomp").addEventListener("submit", (e) => {
+            e.preventDefault()
+            validateComp()
+        })
+    });
+
+    $('#tonage').select2({
+        placeholder: "Select"
+    });
+
+    let tableMaster = $('#material-table')
+    .DataTable({
+        "scrollY": "460px",
+        "scrollCollapse": true,
+        "ajax": {
+            "url": "{% url 'COGM:dttable_picomp' %}",
+            "dataSrc": ""
+        },
+        "order": [],
+        "columns": [
+            { "data": "nama_komponen" },
+            {
+                "data": "total_cost",
+                "render": function (data, type, row) {
+                    if (type === 'display' || type === 'filter') {
+                        return formatNumberWithCommas(data);
+                    }
+                    return data;
+                },
+                'className': 'dt-right'
+            },
+            {
+                "data": "dtmody",
+                "render": function (data, type, row) {
+                    if (type === 'display' || type === 'filter') {
+                        let tanggal = new Date(data);
+                        let tanggalFormatted = tanggal.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+                        return tanggalFormatted;
+                    }
+                    return data;
+                },
+                'className': 'dt-center'
+            },
+            { "data": "action", 'className': 'dt-center'}
+        ]
+    });
+
+    function validate() {
+        Swal.fire({
+            title: 'Konfirmasi',
+            text: 'Apakah Anda yakin ingin mengirimkan formulir?',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Ya',
+            cancelButtonText: 'Tidak'
+        }).then(function(result) {
+            if (result.value) {
+                $.ajax({
+                    type: "POST",
+                    url: "{% url 'COGM:store_picomp' %}",
+                    data: $('#form_id').serialize(),
+                    success: function(response) {
+                        Swal.fire(response.head, response.msg, response.status);
+                        $('#modalTambah').modal('hide');
+                        tableMaster.ajax.reload();
+                    }
+                });
+            }
+        });
+    };
+
+    function edit(id) {
+        let url = '{% url 'COGM:get_picomp' 'param1'%}';
+        url = url.replace('param1', btoa(id));
+        $.ajax({
+            url: url,
+            type: 'GET',
+            dataType: 'json',
+            success: function(response) {
+                $("#judulmodal").text("Edit");
+                $('#id_komponen_pi').val(response.id_komponen_pi);
+                $('#nama').val(response.nama_komponen);
+                $('#penggunaan').val(response.usage);
+                $('#cavity').val(response.cavity);
+                $('#tonage').val(response.id_mesin).change();
+                $('#cycletime').val(response.cycle_time);
+                $('#periode').val(formatTanggal(response.period));
+                $('#costmesin').val(formatNumberWithCommas(response.cost_mesin));
+                $('#costcooling').val(formatNumberWithCommas(response.cost_cooling));
+                const bodyTabel=$('#tbodyMaterial')
+                let strHtml=""
+                response.material_list.forEach((el,i)=>{
+                    strHtml+=`
+                        <tr id="trmaterial_${i+1}" class="material-tr">    
+                            <td style="width:30%;">
+                                <select name="material[]" id="material${i+1}" class="form-control material" style="width:100%" onchange="calculateCostmaterial(${i+1})" required>
+                                    <option value=""></option>
+                                    {% for material in all_material %}
+                                        <option value="{{ material.id_raw_material }}" cost="{{ material.rupiah_harga }}"
+                                        ${el.id_raw_material == '{{ material.id_raw_material }}' ? 'selected' : ''}
+                                        >{{material.nama_raw_material}}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td><input type="number" name="persen[]" id="persen${i+1}" class="form-control text-center" autocomplete="off" oninput="calculateCostmaterial(${i+1})" required value="${el.persen}"></td>
+                            <td><input type="text" name="usage[]" id="usage${i+1}" class="form-control" readonly value="${parseFloat(el.usage).toFixed(6)}"></td>
+                            <td><input type="text" name="rpunit[]" id="rpunit${i+1}" class="form-control text-right" readonly value="${formatNumberWithCommas(el.harga_kg)}"></td>
+                            <td><input type="text" name="rppart[]" id="rppart${i+1}" class="form-control text-right" readonly value="${formatNumberWithCommas(el.harga_part)}"></td>
+                            <td class="dt-center">
+                                <center><button type="button" class="btn btn-xs btn-danger" id="btn-delete-material_${i+1}" onclick="deleteRowMaterial(${i+1})"><i class="fa fa-trash"></i></button></center>
+                            </td>
+                        </tr>
+                    `                    
+                })
+                bodyTabel.html(strHtml);
+                $('.material').select2({
+                    placeholder: "Select"
+                });
+                $('#modalTambah').modal('show');
+            }
+        });
+    }
+
+    function toComponent(id) {
+        let url = '{% url 'COGM:getexport_picomp' 'param1'%}';
+        url = url.replace('param1', btoa(id));
+        $.ajax({
+            url: url,
+            type: 'GET',
+            dataType: 'json',
+            success: function(response) {
+                // $("#nosapcomp").val(response.no_sap);
+                $("#namacomp").val(response.nama);
+                $("#rupiahcomp").val(formatNumberWithCommas(parseFloat(response.rupiah).toFixed(2)));
+                $("#modalToComponent").modal('show');
+            }
+        });
+    }
+
+    function tambahData() {
+        $("#judulmodal").text("Add");
+        $('#id_komponen_pi').val('');
+        $('#nama').val('');
+        $('#penggunaan').val('');
+        $('#cavity').val('');
+        $('#periode').val('');
+        $('#tonage').val('').change();
+        $('#cycletime').val('');
+        $('#costmesin').val('');
+        $('#costcooling').val('');
+        $('#tbodyMaterial').empty();
+        $('#modalTambah').modal('show');
+    } 
+
+    function costMesin() {
+        const cavity = parseFloat($("#cavity").val()) || 0;
+        const costmesin = parseFloat($("#tonage option:selected").attr("costmesin")) || 0;
+        const costcooling = parseFloat($("#tonage option:selected").attr("costcooling")) || 0;
+        const cycletime = parseFloat($("#cycletime").val()) || 0;
+
+        // Menghitung costmesinValue dan costcoolingValue
+        const costmesinValue = (costmesin * cycletime) / cavity;
+        const costcoolingValue = (costcooling * cycletime) / cavity;
+
+        // Memformat dengan koma ribuan dan dua angka desimal
+        const formattedCostmesin = costmesinValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const formattedCostcooling = costcoolingValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        // Memasukkan hasil perhitungan yang diformat ke dalam elemen-elemen yang sesuai
+        $("#costmesin").val(formattedCostmesin);
+        $("#costcooling").val(formattedCostcooling);
+    }
+
+    function formatInput(inputElement) {
+        // Mengambil nilai dari elemen input
+        var inputValue = inputElement.value;
+
+        // Mencari indeks titik (.) dalam input
+        var dotIndex = inputValue.indexOf('.');
+
+        // Jika ada titik (.) dalam input, hanya memproses bagian sebelum titik
+        if (dotIndex !== -1) {
+            var integerPart = inputValue.slice(0, dotIndex);
+            var decimalPart = inputValue.slice(dotIndex);
+            
+            // Menghapus semua karakter selain angka di bagian integer
+            var cleanedIntegerPart = integerPart.replace(/[^\d]/g, '');
+            
+            // Mengubah angka yang telah dibersihkan menjadi format dengan koma
+            var formattedIntegerPart = formatNumberWithCommas(cleanedIntegerPart);
+            
+            // Menggabungkan kembali bagian integer yang telah diformat dengan bagian desimal
+            var formattedValue = formattedIntegerPart + decimalPart;
+        } else {
+            // Jika tidak ada titik (.), hanya menghapus karakter selain angka
+            var cleanedValue = inputValue.replace(/[^\d]/g, '');
+            
+            // Mengubah angka yang telah dibersihkan menjadi format dengan koma
+            var formattedValue = formatNumberWithCommas(cleanedValue);
+        }
+
+        // Memasukkan nilai yang telah diformat kembali ke dalam elemen input
+        inputElement.value = formattedValue;
+    }
+
+    function formatNumberWithCommas(number) {
+        // Menggunakan ekspresi reguler untuk menambahkan koma sesuai dengan format angka
+        if(number != null) {
+            return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        }else{
+            return '-';
+        }
+    }
+
+    function addMaterial() {
+        let row = $('.material-tr').length;
+        row = row + 1;
+        $('#tbodyMaterial').append(initRowMaterial(row));
+        $('.material').select2({
+            placeholder: "Pilih"
+        });
+    };
+
+    function initRowMaterial(row) {
+        return `<tr id="trmaterial_${row}" class="material-tr">    
+                    <td style="width:30%;">
+                        <select name="material[]" id="material${row}" class="form-control material" style="width:100%" onchange="calculateCostmaterial(${row})" required>
+                            <option value=""></option>
+                            {% for material in all_material %}
+                                <option value="{{ material.id_raw_material}}">{{ material.nama_raw_material }}</option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                    <td><input type="number" name="persen[]" id="persen${row}" class="form-control text-center" autocomplete="off" oninput="calculateCostmaterial(${row})" required></td>
+                    <td><input type="text" name="usage[]" id="usage${row}" class="form-control" readonly></td>
+                    <td><input type="text" name="rpunit[]" id="rpunit${row}" class="form-control text-right" readonly></td>
+                    <td><input type="text" name="rppart[]" id="rppart${row}" class="form-control text-right" readonly></td>
+                    <td class="dt-center">
+                        <center><button type="button" class="btn btn-xs btn-danger" id="btn-delete-material_${row}" onclick="deleteRowMaterial(${row})"><i class="fa fa-trash"></i></button></center>
+                    </td>
+                </tr>`
+    }
+
+    function calculateCostmaterial(row) {
+        const materialValue = $(`#material${row}`).val();
+        const period = $(`#periode`).val();
+
+
+        const penggunaanValue = parseFloat($("#penggunaan").val()) || 0;
+        const persenValue = parseFloat($(`#persen${row}`).val()) || 0;
+
+        const usageValue = (penggunaanValue * persenValue / 100);
+
+        $(`#usage${row}`).val(usageValue);
+        if(period != '' && materialValue != '') {
+            $("#loading").show();
+            let url = '{% url 'COGM:getcostmaterial_picomp' 'param1' 'param2'%}';
+            url = url.replace('param1', btoa(materialValue));
+            url = url.replace('param2', btoa(period));
+            $.ajax({
+                url: url,
+                type: 'GET',
+                dataType: 'json',
+                success: function(response) {
+                    $("#loading").hide();
+                    let rppart = '-'
+                    if(response.harga != '-') {
+                        rppart = (response.harga * usageValue).toFixed(2)
+                    }
+                    
+                    $(`#rpunit${row}`).val(formatNumberWithCommas(response.harga));
+                    $(`#rppart${row}`).val(formatNumberWithCommas(rppart));
+                }
+            });
+        }
+        
+    }
+
+    function recalculateCost() {
+        const numberOfMaterialRows = $('.material-tr').length;
+        for (let row = 1; row <= numberOfMaterialRows; row++) {
+            calculateCostmaterial(row);
+        }
+    }
+
+    function deleteRowMaterial(id) {
+        Swal.fire({
+            title: 'Hapus Material',
+            text: 'Apakah Anda yakin ingin menghapus?',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Ya',
+            cancelButtonText: 'Tidak'
+        }).then(function(result) {
+            if (result.isConfirmed) {
+                let row_index = id;
+                let jml_row = $(`.material-tr`).length;
+                document.getElementById(`tableAddMaterial`).deleteRow(row_index);
+                for (let $i = row_index; $i <= jml_row; $i++) {
+
+                    let btn_delete = `#btn-delete-material_` + $i;
+                    let btn_delete_new = `btn-delete-material_` + ($i - 1);
+
+                    $(btn_delete).attr({
+                        "id": btn_delete_new,
+                        "onclick": `deleteRowMaterial(` + ($i - 1) + `)`
+                    });
+                }
+            }
+        }).catch(swal.noop)
+    }
+
+    function formatTanggal(tanggalWaktuAwal) {
+        const tanggalWaktu = new Date(tanggalWaktuAwal);
+        const tahun = tanggalWaktu.getFullYear();
+        const bulan = (tanggalWaktu.getMonth() + 1).toString().padStart(2, '0');
+        const tanggal = tanggalWaktu.getDate().toString().padStart(2, '0');
+        const jam = tanggalWaktu.getHours().toString().padStart(2, '0');
+        const menit = tanggalWaktu.getMinutes().toString().padStart(2, '0');
+        const detik = tanggalWaktu.getSeconds().toString().padStart(2, '0');
+        const tanggalWaktuAkhir = `${tahun}-${bulan}-${tanggal}`;
+        return tanggalWaktuAkhir;
+    }
+
+    function validateComp() {
+        Swal.fire({
+            title: 'Konfirmasi',
+            text: 'Apakah Anda yakin ingin mengirimkan formulir?',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Ya',
+            cancelButtonText: 'Tidak'
+        }).then(function(result) {
+            if (result.value) {
+                $.ajax({
+                    type: "POST",
+                    url: "{% url 'COGM:storetocomp_picomp' %}",
+                    data: $('#form_tocomp').serialize(),
+                    success: function(response) {
+                        Swal.fire(response.head, response.msg, response.status);
+                        $('#modalToComponent').modal('hide');
+                        tableMaster.ajax.reload();
+                    }
+                });
+            }
+        });
+    };
+</script>
+{% endblock %}

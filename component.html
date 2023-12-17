@@ -1,0 +1,406 @@
+{% extends "basecogm.html" %}
+{% load static %}
+{% block content %}
+<style>
+    .select2-container .select2-selection--single {
+        height: 38px;
+        font-size: 16px;
+        width: 100%;
+    }
+
+    .select2-container--default .select2-selection--single {
+        padding-top: 5px;
+        border-color: #CED4DA;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__placeholder {
+        color: #51585E;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        margin-top: 5px;
+    }
+</style>
+<div class="container-fluid">
+    <!-- Page Heading -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">{{ judul }}</h1>
+    </div>
+    <!-- Content Row -->
+    <div class="col-md-12">
+        <div class="row mb-3">
+            <div class="col-md-2" style="margin-top: 32px;">
+                <button type="button" style="width:100%;" class="btn btn-primary" onclick="tambahData()"><i class="fa fa-plus"></i> Add Data</button>
+            </div>
+            <div class="col-md-3">
+                <label for="selectstatus">Status</label>
+                <select name="selectstatus" id="selectstatus" class="form-control select2" style="width:100%">
+                    <option value="A">ALL</option>
+                    <option value="OUT">PI Out House</option>
+                    <option value="NON">NON PI</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <div class="form-group" style="margin-top: 32px;">
+                    <a href="/Media/COGM/TemplateUploadComponent.xlsx"class="btn btn-primary form-control" target="_blank"><i class="fa fa-download"></i> Download Template</a>
+                </div>    
+            </div>
+            <div class="col-md-2">
+                <div class="form-group" style="margin-top: 32px;">
+                    <button type="button" class="btn btn-success form-control" id="btn-upload" data-toggle="modal" data-target="#modalUploadExcel"><i class="fa fa-upload"></i> Upload</button>
+                </div>
+            </div> 
+        </div>
+        <table id="komponen-table" class="display" style="width:100%">
+            <thead>
+                <tr>
+                    <th class="text-center">No SAP</th>
+                    <th class="text-center">Component Name</th>
+                    <th class="text-center">Status</th>
+                    <th class="text-center" style="width: 15%;">Component Cost</th>
+                    <th class="text-center" style="width: 15%;">Update Date</th>
+                    <th class="text-center" style="width: 8%;">Action</th>
+                </tr>
+            </thead>
+        </table>        
+    </div>
+</div>
+
+<!-- Modal Tambah -->
+<div class="modal fade" id="modalTambah">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <h4 class="modal-title"><span id="judulmodal"></span> Component Data</h4>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <!-- Modal body -->
+            <form method="post" id="form_id">
+                {% csrf_token %}
+                <div class="modal-body">
+                <!-- Form untuk input data Komponen -->
+                    <input type="hidden" name="id" id="id">
+                    <div class="form-group">
+                        <label for="nosap">No SAP</label>
+                        <input type="text" class="form-control" name="nosap" id="nosap" autocomplete="off">
+                    </div>
+                    <div class="form-group">
+                        <label for="status">Status</label>
+                        <select name="status" id="status" class="form-control select2" style="width:100%;" required>
+                            <option value=""></option>
+                            <option value="OUT">PI Out House</option>
+                            <option value="NON">NON PI</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="nama">Component Name</label>
+                        <input type="text" class="form-control" name="nama" id="nama" autocomplete="off" required onkeyup="this.value = this.value.toUpperCase();">
+                    </div>
+                    <div class="form-group">
+                        <label for="curr">Currency</label>
+                        <select name="curr" id="curr" class="form-control select2" style="width:100%;" required onchange="updateRupiah()">
+                            <option value=""></option>
+                            {% for curr in all_curr %}
+                                <option value="{{ curr.kode_mata_uang}}" rupiah="{{ curr.rupiah}}">{{ curr.kode_mata_uang }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="harga">Cost (Currency)</label>
+                        <input type="text" class="form-control" name="harga" id="harga" autocomplete="off" required onkeyup="formatInput(this)" oninput="updateRupiah()">
+                    </div>
+                    <div class="form-group">
+                        <label for="rupiah">Cost (Rupiah)</label>
+                        <input type="text" class="form-control" id="rupiah" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label for="satuan">Unit</label>
+                        <select name="satuan" id="satuan" class="form-control select2" style="width:100%;" required>
+                            <option value=""></option>
+                            {% for satuan in all_satuan %}
+                                <option value="{{ satuan.kode}}">{{ satuan.kode }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <!-- Modal footer -->
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Submit</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Upload Excel -->
+<div class="modal fade" id="modalUploadExcel">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <h4 class="modal-title"><span id="judulmodal"></span> Upload File Excel (XLS)</h4>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <!-- Modal body -->
+            <div class="modal-body row" >
+                <div class="col-md-12">
+                    <div class="alert alert-danger">
+                        <strong>Warning!</strong>
+                        <ol>
+                            <li>Masukan File Excel Sesuai Template</li>
+                            <li>Pastikan Semua Component Name Terisi</li>
+                            <li>Pastikan Semua Status Terisi dan Bernilai OUT atau NON</li>
+                            <li>Pastikan Semua Currency Terisi dan Ada Di Tabel Mata Uang</li>
+                            <li>Pastikan Semua Unit Terisi dan Ada Di Tabel Unit</li>
+                        </ol>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label for="file">File Excel (XLS)</label>
+                                <input type="file" name="file" id="file" required accept=".xlsx">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Modal footer -->
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="upload_excel">Submit</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let csrf_token = "{{ csrf_token }}";
+    $(document).ready(function() { 
+        document.getElementById("form_id").addEventListener("submit", (e) => {
+            e.preventDefault()
+            validate()
+        })
+    });
+
+    $('.select2').select2({
+        placeholder: "Select"
+    });
+
+    let tableMaster = $('#komponen-table')
+    .on('preXhr.dt', function(e, settings, data) {
+            data.status = $('#selectstatus').val()
+    }).DataTable({
+        "scrollY": "450px",
+        "order": [],
+        "scrollCollapse": true,
+        "processing": true,
+        "language": {
+            'sProcessing': '<div id="processing" style="margin: 0px; padding: 0px; position: fixed; right: 0px; top: 0px; width: 100%; height: 100%; background-color: rgb(102, 102, 102); z-index: 30001; opacity: 0.8;"><p style="position: absolute; color: White; top: 50%; left: 45%;"><img src="{% static 'image/ajax-loader.gif' %}"></p></div>Processing...'
+        }, 
+        "ajax": {
+            "url": "{% url 'COGM:dttable_component' %}",
+            "dataSrc": ""
+        },
+        "columns": [
+            { "data": "no_sap" },
+            { "data": "nama_component" },
+            { "data": "status", 'className': 'dt-center'},
+            {
+                "data": "rupiah_harga",
+                "render": function (data, type, row) {
+                    if (type === 'display' || type === 'filter') {
+                        // Format data dengan koma setiap tiga angka
+                        return formatNumberWithCommas(data);
+                    }
+                    return data;
+                }, 'className': 'dt-right'
+            },
+            {
+                "data": "dtmody",
+                "render": function (data, type, row) {
+                    if (type === 'display' || type === 'filter') {
+                        let tanggal = new Date(data);
+                        let tanggalFormatted = tanggal.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+                        return tanggalFormatted;
+                    }
+                    return data;
+                },
+                'className': 'dt-center'
+            },
+            { "data": "action", 'className': 'dt-center'}
+        ],
+        "initComplete": function() {
+            $('#selectstatus').change(function() {
+                tableMaster.ajax.url("{% url 'COGM:dttable_component' %}").load();
+            })
+        }
+    });
+
+    function validate() {
+        Swal.fire({
+            title: 'Konfirmasi',
+            text: 'Apakah Anda yakin ingin mengirimkan formulir?',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Ya',
+            cancelButtonText: 'Tidak'
+        }).then(function(result) {
+            if (result.value) {
+                $.ajax({
+                    type: "POST",
+                    url: "{% url 'COGM:store_component' %}",
+                    data: $('#form_id').serialize(),
+                    success: function(response) {
+                        Swal.fire(response.head, response.msg, response.status);
+                        $('#modalTambah').modal('hide');
+                        tableMaster.ajax.reload();
+                    }
+                });
+            }
+        });
+    };
+
+    $('#upload_excel').on('click', function() {
+        let file = $('#file').prop('files')[0];
+        if(file == undefined || !file) {
+            Swal.fire({
+                title: 'File Tidak Ada',
+                text: 'Mohon pilih file terlebih dahulu!',
+                icon: 'error'
+            })
+        } else {
+            let file_name = file.name;
+            let file_ext = file_name.substring(file_name.lastIndexOf('.'));
+            if(file_ext != '.xlsx' && file_ext != '.xls') {
+                Swal.fire({
+                    title: 'File Tidak Valid',
+                    text: 'Mohon pilih file dengan format yang valid (.xls)!',
+                    icon: 'error'
+                })
+            } else {
+                let formData = new FormData();
+                formData.append('file', file);
+                Swal.fire({
+                    title: 'Konfirmasi',
+                    text: 'Apakah anda yakin ingin upload dan sudah sesuai ketentuan?',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'Ya',
+                    cancelButtonText: 'Tidak'
+                }).then(function(result) {
+                    if (result.value) {
+                        $("#loading").show();
+                        $.ajax({
+                            type: "POST",
+                            url: "{% url 'COGM:upload_component' %}",
+                            data: formData,
+                            dataType: 'json',
+                            beforeSend: function (xhr) {
+                                xhr.setRequestHeader("X-CSRFToken", csrf_token);
+                            },
+                            contentType: false,
+                            processData: false,
+                            success: function(response) {
+                                $("#loading").hide();
+                                Swal.fire(response.head, response.msg, response.status);
+                                $('#modalUploadExcel').modal('hide');
+                                tableMaster.ajax.reload();
+                            }
+                        });
+                    }
+                });
+            }
+        }
+    });
+
+    function edit(id) {
+        let url = '{% url 'COGM:get_component' 'param1'%}';
+        url = url.replace('param1', btoa(id));
+        $.ajax({
+            url: url,
+            type: 'GET',
+            dataType: 'json',
+            success: function(response) {
+                $("#judulmodal").text("Edit");
+                $("#id").val(response.id_component);
+                $("#nosap").val(response.no_sap);
+                $("#status").val(response.status).change();
+                $("#nama").val(response.nama_component);
+                $("#curr").val(response.kode_mata_uang).change();
+                $("#harga").val(formatNumberWithCommas(response.harga_component));
+                $("#satuan").val(response.satuan).change();
+                $("#rupiah").val(formatNumberWithCommas(response.harga));
+                $('#modalTambah').modal('show');
+            }
+        });
+    }
+
+    function tambahData() {
+        $("#judulmodal").text("Add");
+        $('#id').val('');
+        $('#nosap').val('');
+        $("#nama").val('');
+        $("#curr").val('').change();
+        $("#status").val('').change();
+        $("#satuan").val('').change();
+        $("#harga").val('');
+        $("#rupiah").val('');
+        $('#modalTambah').modal('show');
+    } 
+
+    function updateRupiah() {
+        const currSelect = document.getElementById("curr");
+        const hargaInput = document.getElementById("harga");
+        const rupiahInput = document.getElementById("rupiah");
+        const selectedCurr = currSelect.value;
+        const harga = parseFloat(hargaInput.value.replace(/,/g, ""));
+        const rupiahRate = parseFloat(currSelect.options[currSelect.selectedIndex].getAttribute("rupiah"));
+        const hargaRupiah = harga * rupiahRate;
+        rupiahInput.value = formatNumber(hargaRupiah);
+    }
+
+    function formatNumber(number) {
+        return number.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, "$&,");
+    }
+
+    function formatInput(inputElement) {
+        // Mengambil nilai dari elemen input
+        var inputValue = inputElement.value;
+
+        // Mencari indeks titik (.) dalam input
+        var dotIndex = inputValue.indexOf('.');
+
+        // Jika ada titik (.) dalam input, hanya memproses bagian sebelum titik
+        if (dotIndex !== -1) {
+            var integerPart = inputValue.slice(0, dotIndex);
+            var decimalPart = inputValue.slice(dotIndex);
+            
+            // Menghapus semua karakter selain angka di bagian integer
+            var cleanedIntegerPart = integerPart.replace(/[^\d]/g, '');
+            
+            // Mengubah angka yang telah dibersihkan menjadi format dengan koma
+            var formattedIntegerPart = formatNumberWithCommas(cleanedIntegerPart);
+            
+            // Menggabungkan kembali bagian integer yang telah diformat dengan bagian desimal
+            var formattedValue = formattedIntegerPart + decimalPart;
+        } else {
+            // Jika tidak ada titik (.), hanya menghapus karakter selain angka
+            var cleanedValue = inputValue.replace(/[^\d]/g, '');
+            
+            // Mengubah angka yang telah dibersihkan menjadi format dengan koma
+            var formattedValue = formatNumberWithCommas(cleanedValue);
+        }
+
+        // Memasukkan nilai yang telah diformat kembali ke dalam elemen input
+        inputElement.value = formattedValue;
+    }
+
+    function formatNumberWithCommas(number) {
+        // Menggunakan ekspresi reguler untuk menambahkan koma sesuai dengan format angka
+        return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }
+
+</script>
+{% endblock %}

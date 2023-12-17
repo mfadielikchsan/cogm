@@ -1,0 +1,212 @@
+{% extends "basecogm.html" %}
+{% load static %}
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Heading -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">{{ judul }}</h1>
+    </div>
+    <!-- Content Row -->
+    <div class="col-md-12">
+        <div class="row mb-3">
+            <div class="col-md-2">
+                <button type="button" style="width:100%;" class="btn btn-primary" onclick="tambahData()"><i class="fa fa-plus"></i> Add Pi Machine</button> 
+            </div>
+        </div>
+        <table id="material-table" class="display" style="width:100%">
+            <thead>
+                <tr>
+                    <th class="text-center">Machine Tonagge</th>
+                    <th class="text-center">Cost Machine / Sec</th>
+                    <th class="text-center">Cost Cooling / Sec</th>
+                    <th class="text-center">Update Date</th>
+                    <th class="text-center">Action</th>
+                </tr>
+            </thead>
+        </table>     
+    </div>
+</div>
+
+<!-- Modal Tambah -->
+<div class="modal fade" id="modalTambah">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <h4 class="modal-title"><span id="judulmodal"></span> PI Machine Data</h4>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <!-- Modal body -->
+            <form method="post" id="form_id">
+                {% csrf_token %}
+                <div class="modal-body">
+                <!-- Form untuk input data Material -->
+                    <input type="hidden" name="id" id="idpimesin">
+                    <div class="form-group">
+                        <label for="tonage">Machine Tonagge</label>
+                        <input type="number" class="form-control" name="tonage" id="tonage" autocomplete="off" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="cost">Cost Machine / Sec</label>
+                        <input type="text" class="form-control" name="cost" id="cost" autocomplete="off" required onkeyup="formatInput(this)">
+                    </div>
+                    <div class="form-group">
+                        <label for="cooling">Cost Cooling / Sec</label>
+                        <input type="text" class="form-control" name="cooling" id="cooling" autocomplete="off" required onkeyup="formatInput(this)">
+                    </div>
+                </div>
+                <!-- Modal footer -->
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Submit</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    $(document).ready(function() { 
+        document.getElementById("form_id").addEventListener("submit", (e) => {
+            e.preventDefault()
+            validate()
+        })
+    });
+
+    let tableMaster = $('#material-table')
+    .DataTable({
+        "scrollY": "460px",
+        "scrollCollapse": true,
+        "order": [],
+        "ajax": {
+            "url": "{% url 'COGM:dttable_pimesin' %}",
+            "dataSrc": ""
+        },
+        "columns": [
+            { "data": "machine_tonage" },
+            {
+                "data": "cost_mesin",
+                "render": function (data, type, row) {
+                    if (type === 'display' || type === 'filter') {
+                        // Format data dengan koma setiap tiga angka
+                        return formatNumberWithCommas(data);
+                    }
+                    return data;
+                }
+            },
+            {
+                "data": "cost_cooling",
+                "render": function (data, type, row) {
+                    if (type === 'display' || type === 'filter') {
+                        // Format data dengan koma setiap tiga angka
+                        return formatNumberWithCommas(data);
+                    }
+                    return data;
+                }
+            },
+            {
+                "data": "dtmody",
+                "render": function (data, type, row) {
+                    if (type === 'display' || type === 'filter') {
+                        let tanggal = new Date(data);
+                        let tanggalFormatted = tanggal.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+                        return tanggalFormatted;
+                    }
+                    return data;
+                },
+                'className': 'dt-center'
+            },
+            { "data": "action", 'className': 'dt-center'}
+        ]
+    });
+
+    function validate() {
+        Swal.fire({
+            title: 'Konfirmasi',
+            text: 'Apakah Anda yakin ingin mengirimkan formulir?',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Ya',
+            cancelButtonText: 'Tidak'
+        }).then(function(result) {
+            if (result.value) {
+                $.ajax({
+                    type: "POST",
+                    url: "{% url 'COGM:store_pimesin' %}",
+                    data: $('#form_id').serialize(),
+                    success: function(response) {
+                        Swal.fire(response.head, response.msg, response.status);
+                        $('#modalTambah').modal('hide');
+                        tableMaster.ajax.reload();
+                    }
+                });
+            }
+        });
+    };
+
+    function edit(id) {
+        let url = '{% url 'COGM:get_pimesin' 'param1'%}';
+        url = url.replace('param1', btoa(id));
+        $.ajax({
+            url: url,
+            type: 'GET',
+            dataType: 'json',
+            success: function(response) {
+                $("#judulmodal").text("Edit");
+                $("#idpimesin").val(response.id_mesin);
+                $("#tonage").val(response.machine_tonage);
+                $("#cost").val(formatNumberWithCommas(response.cost_mesin));
+                $("#cooling").val(formatNumberWithCommas(response.cost_cooling));
+                $('#modalTambah').modal('show');
+            }
+        });
+    }
+
+    function tambahData() {
+        $("#judulmodal").text("Add");
+        $("#idpimesin").val('');
+        $("#tonage").val('');
+        $("#cost").val('');
+        $("#cooling").val('');
+        $('#modalTambah').modal('show');
+    } 
+
+    function formatInput(inputElement) {
+        // Mengambil nilai dari elemen input
+        var inputValue = inputElement.value;
+
+        // Mencari indeks titik (.) dalam input
+        var dotIndex = inputValue.indexOf('.');
+
+        // Jika ada titik (.) dalam input, hanya memproses bagian sebelum titik
+        if (dotIndex !== -1) {
+            var integerPart = inputValue.slice(0, dotIndex);
+            var decimalPart = inputValue.slice(dotIndex);
+            
+            // Menghapus semua karakter selain angka di bagian integer
+            var cleanedIntegerPart = integerPart.replace(/[^\d]/g, '');
+            
+            // Mengubah angka yang telah dibersihkan menjadi format dengan koma
+            var formattedIntegerPart = formatNumberWithCommas(cleanedIntegerPart);
+            
+            // Menggabungkan kembali bagian integer yang telah diformat dengan bagian desimal
+            var formattedValue = formattedIntegerPart + decimalPart;
+        } else {
+            // Jika tidak ada titik (.), hanya menghapus karakter selain angka
+            var cleanedValue = inputValue.replace(/[^\d]/g, '');
+            
+            // Mengubah angka yang telah dibersihkan menjadi format dengan koma
+            var formattedValue = formatNumberWithCommas(cleanedValue);
+        }
+
+        // Memasukkan nilai yang telah diformat kembali ke dalam elemen input
+        inputElement.value = formattedValue;
+    }
+
+    function formatNumberWithCommas(number) {
+        // Menggunakan ekspresi reguler untuk menambahkan koma sesuai dengan format angka
+        return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }
+
+</script>
+{% endblock %}

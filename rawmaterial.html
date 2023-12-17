@@ -1,0 +1,494 @@
+{% extends "basecogm.html" %}
+{% load static %}
+{% block content %}
+<style>
+    .select2-container .select2-selection--single {
+        height: 38px;
+        font-size: 16px;
+        width: 100%;
+    }
+
+    .select2-container--default .select2-selection--single {
+        padding-top: 5px;
+        border-color: #CED4DA;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__placeholder {
+        color: #51585E;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        margin-top: 5px;
+    }
+</style>
+<div class="container-fluid">
+    <!-- Page Heading -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">{{ judul }}</h1>
+    </div>
+    <!-- Content Row -->
+    <div class="col-md-12">
+        <div class="row mb-3">
+            <div class="col-md-2">
+                <button type="button" style="width:100%;" class="btn btn-primary" onclick="tambahData()"><i class="fa fa-plus"></i> Add Data</button>
+            </div>
+            <div class="col-md-3">
+                <div class="form-group">
+                    <a href="{% url 'COGM:download_rawmaterial' %}"class="btn btn-primary form-control" target="_blank"><i class="fa fa-download"></i> Download Template</a>
+                </div>    
+            </div>
+            <div class="col-md-2">
+                <div class="form-group">
+                    <button type="button" class="btn btn-success form-control" id="btn-upload" data-toggle="modal" data-target="#modalUploadExcel"><i class="fa fa-upload"></i> Upload</button>
+                </div>
+            </div> 
+        </div>
+        <table id="material-table" class="display" style="width: 100%;">
+            <thead>
+                <tr>
+                    <th class="text-center" style="width: 20%;">No SAP</th>
+                    <th class="text-center" style="width: 35%;">Material Name</th>
+                    <th class="text-center">Currency</th>
+                    <th class="text-center">Cost/Currency</th>
+                    <th class="text-center">Cost/RP</th>
+                    <th class="text-center">Action</th>
+                </tr>
+            </thead>
+        </table>   
+    </div>
+</div>
+
+<!-- Modal Tambah -->
+<div class="modal fade" id="modalTambah">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <h4 class="modal-title"><span id="judulmodal"></span> Material Data</h4>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <!-- Modal body -->
+            <form method="post" id="form_id">
+                {% csrf_token %}
+                <div class="modal-body">
+                <!-- Form untuk input data Material -->
+                    <input type="hidden" name="id" id="id">
+                    <div class="form-group">
+                        <label for="nosap">No SAP</label>
+                        <input type="text" class="form-control" name="nosap" id="nosap" autocomplete="off" required onkeyup="this.value = this.value.toUpperCase();">
+                    </div>
+                    <div class="form-group">
+                        <label for="nama">Material Name</label>
+                        <input type="text" class="form-control" name="nama" id="nama" autocomplete="off" required onkeyup="this.value = this.value.toUpperCase();">
+                    </div>
+                </div>
+                <!-- Modal footer -->
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Submit</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Detail -->
+<div class="modal fade" id="modalDetail">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <h4 class="modal-title"><span id="headmodal"></span></h4>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <!-- Modal body -->
+            <form method="post" id="form_detail">
+            <input type="hidden" name="idmaterial" id="idmaterial">
+            {% csrf_token %}
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-2">
+                        <button type="button" style="width:100%;" class="btn btn-primary" onclick="tambahDataDetail()"><i class="fa fa-plus"></i> Add Data</button>
+                    </div>
+                </div>
+                <table class="table mt-3" id="tableDetail">
+                    <thead>
+                        <tr>
+                            <th style="text-align: center;">Start Date</th>
+                            <th style="text-align: center;">End Date</th>
+                            <th style="text-align: center;">Currency</th>
+                            <th style="text-align: center;">Cost/KG</th>
+                            <th style="text-align: center;">Update Date</th>
+                            <th style="text-align: center;">Delete</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbodyDetail">
+
+                    </tbody>
+                </table>
+            </div>
+            <!-- Modal footer -->
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button type="submit" class="btn btn-primary">Submit</button>
+            </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Upload Excel -->
+<div class="modal fade" id="modalUploadExcel">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <h4 class="modal-title"><span id="judulmodal"></span> Upload File Excel (XLS)</h4>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <!-- Modal body -->
+            <div class="modal-body row" >
+                <div class="col-md-12">
+                    <div class="alert alert-danger">
+                        <strong>Warning!</strong>
+                        <ol>
+                            <li>Masukan File Excel Sesuai Template</li>
+                            <li>Pastikan Semua Data Terisi</li>
+                            <li>Format Date dd/mm/yyyy</li>
+                            <li>Pastikan Semua Currency Ada Di Tabel Mata Uang</li>
+                        </ol>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label for="file">File Excel (XLS)</label>
+                                <input type="file" name="file" id="file" required accept=".xlsx">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Modal footer -->
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="upload_excel">Submit</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let csrf_token = "{{ csrf_token }}";
+    $(document).ready(function() { 
+        document.getElementById("form_id").addEventListener("submit", (e) => {
+            e.preventDefault()
+            validate()
+        })
+        document.getElementById("form_detail").addEventListener("submit", (e) => {
+            e.preventDefault()
+            validateDetail()
+        })
+    });
+
+    $('.select2').select2({
+        placeholder: "Select"
+    });
+
+    let tableMaster = $('#material-table')
+    .DataTable({
+        "scrollY": "450px",
+        "scrollX": true,
+        "scrollCollapse": true,
+        "order": [],
+        "ajax": {
+            "url": "{% url 'COGM:dttable_rawmaterial' %}",
+            "dataSrc": ""
+        },
+        "columns": [
+            { "data": "no_sap" },
+            { "data": "nama_raw_material" },
+            { "data": "currency", 'className': 'dt-center' },
+            { "data": "harga", "render": $.fn.dataTable.render.number(',', '.', 2, ''), 'className': 'dt-right' },
+            { "data": "rupiah", "render": $.fn.dataTable.render.number(',', '.', 2, ''), 'className': 'dt-right' },
+            { "data": "action", 'className': 'dt-center'}
+        ]
+    });
+
+    function validate() {
+        Swal.fire({
+            title: 'Konfirmasi',
+            text: 'Apakah Anda yakin ingin mengirimkan formulir?',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Ya',
+            cancelButtonText: 'Tidak'
+        }).then(function(result) {
+            if (result.value) {
+                $.ajax({
+                    type: "POST",
+                    url: "{% url 'COGM:store_rawmaterial' %}",
+                    data: $('#form_id').serialize(),
+                    success: function(response) {
+                        Swal.fire(response.head, response.msg, response.status);
+                        $('#modalTambah').modal('hide');
+                        tableMaster.ajax.reload();
+                    }
+                });
+            }
+        });
+    };
+
+    function validateDetail() {
+        Swal.fire({
+            title: 'Konfirmasi',
+            text: 'Apakah Anda yakin ingin mengirimkan formulir?',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Ya',
+            cancelButtonText: 'Tidak'
+        }).then(function(result) {
+            if (result.value) {
+                $.ajax({
+                    type: "POST",
+                    url: "{% url 'COGM:storedetail_rawmaterial' %}",
+                    data: $('#form_detail').serialize(),
+                    success: function(response) {
+                        Swal.fire(response.head, response.msg, response.status);
+                        $('#modalTambah').modal('hide');
+                        tableMaster.ajax.reload();
+                    }
+                });
+            }
+        });
+    };
+
+    $('#upload_excel').on('click', function() {
+        let file = $('#file').prop('files')[0];
+        if(file == undefined || !file) {
+            Swal.fire({
+                title: 'File Tidak Ada',
+                text: 'Mohon pilih file terlebih dahulu!',
+                icon: 'error'
+            })
+        } else {
+            let file_name = file.name;
+            let file_ext = file_name.substring(file_name.lastIndexOf('.'));
+            if(file_ext != '.xlsx' && file_ext != '.xls') {
+                Swal.fire({
+                    title: 'File Tidak Valid',
+                    text: 'Mohon pilih file dengan format yang valid (.xls)!',
+                    icon: 'error'
+                })
+            } else {
+                let formData = new FormData();
+                formData.append('file', file);
+                Swal.fire({
+                    title: 'Konfirmasi',
+                    text: 'Apakah anda yakin ingin upload dan sudah sesuai ketentuan?',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'Ya',
+                    cancelButtonText: 'Tidak'
+                }).then(function(result) {
+                    if (result.value) {
+                        $("#loading").show();
+                        $.ajax({
+                            type: "POST",
+                            url: "{% url 'COGM:upload_rawmaterial' %}",
+                            data: formData,
+                            dataType: 'json',
+                            beforeSend: function (xhr) {
+                                xhr.setRequestHeader("X-CSRFToken", csrf_token);
+                            },
+                            contentType: false,
+                            processData: false,
+                            success: function(response) {
+                                $("#loading").hide();
+                                Swal.fire(response.head, response.msg, response.status);
+                                $('#modalUploadExcel').modal('hide');
+                                tableMaster.ajax.reload();
+                            }
+                        });
+                    }
+                });
+            }
+        }
+    });
+
+    function edit(id) {
+        let url = '{% url 'COGM:get_rawmaterial' 'param1'%}';
+        url = url.replace('param1', btoa(id));
+        $.ajax({
+            url: url,
+            type: 'GET',
+            dataType: 'json',
+            success: function(response) {
+                $("#judulmodal").text("Edit");
+                $("#id").val(response.id_raw_material);
+                $("#nosap").val(response.no_sap);
+                $("#nama").val(response.nama_raw_material);
+                $('#modalTambah').modal('show');
+            }
+        });
+    }
+
+    function detail(id) {
+        let url = '{% url 'COGM:getdetail_rawmaterial' 'param1'%}';
+        url = url.replace('param1', btoa(id));
+        $.ajax({
+            url: url,
+            type: 'GET',
+            dataType: 'json',
+            success: function(response) {
+                console.log(response.detail);
+                $('#headmodal').text(response.nama);
+                $('#idmaterial').val(id);
+                const bodyTabel=$('#tbodyDetail')
+                let strHtml=""
+                response.detail.forEach((el,i)=>{
+                    strHtml+=`
+                        <tr class="form-tr" id="form-tr${i+1}">
+                            <input type="hidden" name="iddetail[]" value="${el.id}">
+                            <td><input type="date" class="form-control" name="tgl1[]" id="tgl1${i+1}" value="${formatTanggalYmd(el.tgl_awal)}" required></td>
+                            <td><input type="date" class="form-control" name="tgl2[]" id="tgl2${i+1}" value="${formatTanggalYmd(el.tgl_akhir)}" required></td>
+                            <td>
+                                <select name="curr[]" id="curr${i+1}" class="form-control select2" style="width:100%;" required>
+                                    <option value=""></option>
+                                    {% for curr in all_curr %}
+                                        <option value="{{ curr.kode_mata_uang}}" rupiah="{{ curr.rupiah}}"
+                                        ${el.kode_mata_uang_id == '{{ curr.kode_mata_uang }}' ? 'selected' : ''}
+                                        >{{ curr.kode_mata_uang }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td><input type="text" class="form-control text-right" name="cost[]" id="cost${i+1}" onkeyup="formatInput(this)" value="${formatNumberWithCommas(el.harga)}" required></td>
+                            <td><input type="text" class="form-control" name="update[]" id="update${i+1}" readonly value="${formatTanggal(el.dtcrea)}"></td>
+                            <td></td>
+                        </tr>
+                    `                    
+                })
+                bodyTabel.html(strHtml);
+                $('.select2').select2({
+                    placeholder: "Select"
+                });
+                $('#modalDetail').modal('show');
+            }
+        });
+    }
+
+    function tambahData() {
+        $("#judulmodal").text("Add");
+        $('#id').val('');
+        $('#nosap').val('');
+        $("#nama").val('');
+        $('#modalTambah').modal('show');
+    } 
+
+    function tambahDataDetail() {
+        let row = $('.form-tr').length;
+        row = row + 1;
+        $('#tbodyDetail').prepend(initRowStruk1(row));
+        $('.select2').select2({
+            placeholder: "Select"
+        });
+    };
+
+    function initRowStruk1(row) {
+        return `<tr class="form-tr" id="form-tr${row}">
+                    <input type="hidden" name="iddetail[]" value="new">
+                    <td><input type="date" class="form-control" name="tgl1[]" id="tgl1${row}" required></td>
+                    <td><input type="date" class="form-control" name="tgl2[]" id="tgl2${row}" required></td>
+                    <td>
+                        <select name="curr[]" id="curr${row}" class="form-control select2" style="width:100%;" required>
+                            <option value=""></option>
+                            {% for curr in all_curr %}
+                                <option value="{{ curr.kode_mata_uang}}" rupiah="{{ curr.rupiah}}">{{ curr.kode_mata_uang }}</option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                    <td><input type="text" class="form-control" name="cost[]" id="cost${row}" onkeyup="formatInput(this)" required></td>
+                    <td><input type="text" class="form-control" name="update[]" id="update${row}" readonly></td>
+                    <td class="dt-center">
+                        <center><button type="button" class="btn btn-xs btn-danger" onclick="deleteRow(${row})"><i class="fa fa-trash"></i></button></center>
+                    </td>
+                </tr>`
+    }
+
+    function deleteRow(id) {
+        Swal.fire({
+            title: 'Hapus',
+            text: 'Apakah Anda yakin ingin menghapus?',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Ya',
+            cancelButtonText: 'Tidak'
+        }).then(function(result) {
+            if (result.isConfirmed) {
+                $(`#form-tr${id}`).remove()
+            }
+        }).catch(swal.noop)
+    }
+
+    function formatNumber(number) {
+        return number.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, "$&,");
+    }
+
+    function formatInput(inputElement) {
+        // Mengambil nilai dari elemen input
+        var inputValue = inputElement.value;
+
+        // Mencari indeks titik (.) dalam input
+        var dotIndex = inputValue.indexOf('.');
+
+        // Jika ada titik (.) dalam input, hanya memproses bagian sebelum titik
+        if (dotIndex !== -1) {
+            var integerPart = inputValue.slice(0, dotIndex);
+            var decimalPart = inputValue.slice(dotIndex);
+            
+            // Menghapus semua karakter selain angka di bagian integer
+            var cleanedIntegerPart = integerPart.replace(/[^\d]/g, '');
+            
+            // Mengubah angka yang telah dibersihkan menjadi format dengan koma
+            var formattedIntegerPart = formatNumberWithCommas(cleanedIntegerPart);
+            
+            // Menggabungkan kembali bagian integer yang telah diformat dengan bagian desimal
+            var formattedValue = formattedIntegerPart + decimalPart;
+        } else {
+            // Jika tidak ada titik (.), hanya menghapus karakter selain angka
+            var cleanedValue = inputValue.replace(/[^\d]/g, '');
+            
+            // Mengubah angka yang telah dibersihkan menjadi format dengan koma
+            var formattedValue = formatNumberWithCommas(cleanedValue);
+        }
+
+        // Memasukkan nilai yang telah diformat kembali ke dalam elemen input
+        inputElement.value = formattedValue;
+    }
+
+    function formatNumberWithCommas(number) {
+        // Menggunakan ekspresi reguler untuk menambahkan koma sesuai dengan format angka
+        return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }
+
+    function formatTanggal(tanggalWaktuAwal) {
+        const tanggalWaktu = new Date(tanggalWaktuAwal);
+        const tahun = tanggalWaktu.getFullYear();
+        const bulan = tanggalWaktu.toLocaleString('en-US', { month: 'short' });;
+        const tanggal = tanggalWaktu.getDate().toString().padStart(2, '0');
+        const jam = tanggalWaktu.getHours().toString().padStart(2, '0');
+        const menit = tanggalWaktu.getMinutes().toString().padStart(2, '0');
+        const detik = tanggalWaktu.getSeconds().toString().padStart(2, '0');
+        const tanggalWaktuAkhir = `${tanggal}-${bulan}-${tahun} ${jam}:${menit}:${detik}`;
+        return tanggalWaktuAkhir;
+    }
+
+    function formatTanggalYmd(tanggalWaktuAwal) {
+        const tanggalWaktu = new Date(tanggalWaktuAwal);
+        const tahun = tanggalWaktu.getFullYear();
+        const bulan = (tanggalWaktu.getMonth() + 1).toString().padStart(2, '0');
+        const tanggal = tanggalWaktu.getDate().toString().padStart(2, '0');
+        const tanggalWaktuAkhir = `${tahun}-${bulan}-${tanggal}`;
+        return tanggalWaktuAkhir;
+    }
+</script>
+{% endblock %}

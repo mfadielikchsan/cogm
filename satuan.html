@@ -1,0 +1,138 @@
+{% extends "basecogm.html" %}
+{% load static %}
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Heading -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">{{ judul }}</h1>
+    </div>
+    <!-- Content Row -->
+    <div class="col-md-12">
+        <div class="row mb-3">
+            <div class="col-md-2">
+                <button type="button" style="width:100%;" class="btn btn-primary" onclick="tambahData()"><i class="fa fa-plus"></i> Add Data</button>
+            </div>
+        </div>
+        <table id="material-table" class="display" style="width:100%">
+            <thead>
+                <tr>
+                    <th class="text-center">No</th>
+                    <th class="text-center">Unit</th>
+                    <th class="text-center">Action</th>
+                </tr>
+            </thead>
+        </table>        
+    </div>
+</div>
+
+<!-- Modal Tambah -->
+<div class="modal fade" id="modalTambah">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <h4 class="modal-title">Add Unit Data</h4>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <!-- Modal body -->
+            <form method="post" id="form_id">
+                {% csrf_token %}
+                <div class="modal-body">
+                <!-- Form untuk input data -->
+                    <div class="form-group">
+                        <label for="kode">Unit</label>
+                        <input type="text" class="form-control" name="kode" id="kode" autocomplete="off" required onkeyup="this.value = this.value.toUpperCase();" maxlength="5">
+                    </div>
+                </div>
+                <!-- Modal footer -->
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Submit</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    $(document).ready(function() { 
+        document.getElementById("form_id").addEventListener("submit", (e) => {
+            e.preventDefault()
+            validate()
+        })
+    });
+
+    let tableMaster = $('#material-table')
+    .DataTable({
+        "scrollY": "450px",
+        "scrollCollapse": true,
+        "ajax": {
+            "url": "{% url 'COGM:dttable_satuan' %}",
+            "dataSrc": ""
+        },
+        "columns": [
+            { "data": "no", 'className': 'dt-center' },
+            { "data": "kode", 'className': 'dt-center' },
+            { "data": "action", 'className': 'dt-center' }
+        ]
+    });
+
+    function validate() {
+        Swal.fire({
+            title: 'Konfirmasi',
+            text: 'Apakah Anda yakin ingin mengirimkan formulir?',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Ya',
+            cancelButtonText: 'Tidak'
+        }).then(function(result) {
+            if (result.value) {
+                $.ajax({
+                    type: "POST",
+                    url: "{% url 'COGM:store_satuan' %}",
+                    data: $('#form_id').serialize(),
+                    success: function(response) {
+                        Swal.fire(response.head, response.msg, response.status);
+                        $('#modalTambah').modal('hide');
+                        tableMaster.ajax.reload();
+                    }
+                });
+            }
+        });
+    };
+
+    function hapus(id) {
+        Swal.fire({
+            title: 'Warning',
+            text: 'Apakah Anda yakin ingin menghapus?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Ya',
+            cancelButtonText: 'Tidak'
+        }).then(function(result) {
+            if (result.value) {
+                let url = '{% url 'COGM:hapus_satuan' 'param1'%}';
+                url = url.replace('param1', btoa(id));
+                let csrftoken = $("[name=csrfmiddlewaretoken]").val(); 
+                $.ajax({
+                    url: url,
+                    type: 'DELETE',
+                    beforeSend: function(xhr) {
+                        xhr.setRequestHeader("X-CSRFToken", csrftoken);
+                    },
+                    success: function(response) {
+                        Swal.fire(response.head, response.msg, response.status);
+                        tableMaster.ajax.reload();
+                    }
+                });
+            }
+        });
+    }
+
+    function tambahData() {
+        $('#kode').val('');
+        $('#modalTambah').modal('show');
+    } 
+
+</script>
+{% endblock %}

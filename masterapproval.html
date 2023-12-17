@@ -1,0 +1,78 @@
+{% extends "basecogm.html" %}
+{% load static %}
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Heading -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">{{ judul }}</h1>
+    </div>
+    <!-- Content Row -->
+    <form method="post" id="form_id">
+    {% csrf_token %}
+    <div class="col-md-12 row">
+        <div class="col-md-4">
+            <label for="namadept">Nama Dept Head</label>
+            <input type="text" id="namadept" name="namadept" class="form-control" value="{{ data.nama_depthead|default:'' }}">
+        </div>
+        <div class="col-md-4">
+            <label for="emaildept">Email Dept Head</label>
+            <input type="email" id="emaildept" name="emaildept" class="form-control" value="{{ data.email_depthead|default:'' }}">
+        </div>
+    </div>
+    <div class="col-md-12 row mt-3">
+        <div class="col-md-4">
+            <label for="namadiv">Nama Div Head</label>
+            <input type="text" id="namadiv" name="namadiv" class="form-control" value="{{ data.nama_divhead|default:'' }}">
+        </div>
+        <div class="col-md-4">
+            <label for="emaildiv">Email Div Head</label>
+            <input type="email" id="emaildiv" name="emaildiv" class="form-control" value="{{ data.email_divhead|default:'' }}">
+        </div>
+    </div>
+    <div class="col-md-12 row mt-3">
+        <div class="col-md-4">
+            <label for="namapresdir">Nama Presdir</label>
+            <input type="text" id="namapresdir" name="namapresdir" class="form-control" value="{{ data.nama_presdir|default:'' }}">
+        </div>
+        <div class="col-md-4">
+            <label for="emailpresdir">Email Presdir</label>
+            <input type="email" id="emailpresdir" name="emailpresdir" class="form-control" value="{{ data.email_presdir|default:'' }}">
+        </div>
+    </div>
+    <div class="col-md-12 mt-3">
+        <button type="submit" class="btn btn-primary">Submit</button>
+    </div>
+    </form>
+</div>
+
+<script>
+    $(document).ready(function() { 
+        document.getElementById("form_id").addEventListener("submit", (e) => {
+            e.preventDefault();
+            validate();
+        });
+    });
+
+    function validate() {
+        Swal.fire({
+            title: 'Konfirmasi',
+            text: 'Apakah Anda yakin ingin mengirimkan formulir?',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Ya',
+            cancelButtonText: 'Tidak'
+        }).then(function(result) {
+            if (result.value) {
+                $.ajax({
+                    type: "POST",
+                    url: "{% url 'COGM:storemaster_approval' %}",
+                    data: $('#form_id').serialize(),
+                    success: function(response) {
+                        Swal.fire(response.head, response.msg, response.status)
+                    }
+                });
+            }
+        });
+    };
+</script>
+{% endblock %}

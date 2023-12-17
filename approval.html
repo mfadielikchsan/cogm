@@ -1,0 +1,149 @@
+{% extends "basecogm.html" %}
+{% load static %}
+{% block content %}
+<style>
+    .select2-container .select2-selection--single {
+        height: 38px;
+        font-size: 16px;
+        width: 100%;
+    }
+
+    .select2-container--default .select2-selection--single {
+        padding-top: 5px;
+        border-color: #CED4DA;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__placeholder {
+        color: #51585E;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        margin-top: 5px;
+    }
+</style>
+<div class="container-fluid">
+    <!-- Page Heading -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">{{ judul }}</h1>
+    </div>
+    <!-- Content Row -->
+    <div class="col-md-12">
+        <div class="row mb-3">
+            <div class="col-md-3">
+                <label for="selectstatus">Status Approve</label>
+                <select name="selectstatus" id="selectstatus" class="form-control select2" style="width:100%">
+                    <option value="0">Not Yet</option>
+                    <option value="1">Approved</option>
+                    <option value="2">Rejected</option>
+                    <option value="3">All</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="nama">Product Name</label>
+                <select name="nama" id="nama" class="form-control select2" style="width:100%;">
+                    <option value="ALL">All</option>
+                    {% for produk in all_produk %}
+                        <option value="{{ produk.id_produk}}">{{ produk.nama_produk }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-12 mt-4">
+        <table id="approval-table" class="tabel" style="width:100%">
+            <thead>
+                <tr>
+                    <th class="text-center">No</th>
+                    <th class="text-center">Nama Product</th>
+                    <th class="text-center">Total Cost</th>
+                    <th class="text-center">Created By</th>
+                    <th class="text-center">Date Created</th>
+                    <th class="text-center">Status Approve</th>
+                    <th class="text-center" style="width: 8%;">View</th>
+                </tr>
+            </thead>
+        </table>        
+    </div>
+</div>
+
+<script>
+    $('.select2').select2({
+        placeholder: "Pilih"
+    });
+
+    let tableMaster = $('#approval-table')
+    .on('preXhr.dt', function(e, settings, data) {
+        data.status = $('#selectstatus').val()
+        data.id_product = $('#nama').val()
+    }).DataTable({
+        "scrollY": "450px",
+        "scrollCollapse": true,
+        "processing": true,
+        "language": {
+            "sProcessing": '<div id="processing" style="margin: 0px; padding: 0px; position: fixed; right: 0px; top: 0px; width: 100%; height: 100%; background-color: rgb(102, 102, 102); z-index: 30001; opacity: 0.8;"><p style="position: absolute; color: White; top: 50%; left: 45%;"><img src="{% static "image/ajax-loader.gif" %}"></p></div>Processing...'
+        },
+        "ajax": {
+            "url": '{% url "COGM:dttable_approval" %}',
+            "dataSrc": ""
+        },
+        "columns": [
+            { "data": "no", "className": "dt-center" },
+            { "data": "nama_produk" },
+            {
+                "data": "total_cost",
+                "render": function (data, type, row) {
+                    if (type === 'display' || type === 'filter') {
+                        return formatNumberWithCommas(data);
+                    }
+                    return data;
+                }
+            },
+            { "data": "creaby" },
+            {
+                "data": "dtcrea",
+                "render": function (data, type, row) {
+                    if (type === 'display' || type === 'filter') {
+                        let tanggal = new Date(data);
+                        let jam = tanggal.getHours();
+                        let menit = tanggal.getMinutes();
+                        let detik = tanggal.getSeconds();
+
+                        // Add leading zero if needed
+                        jam = (jam < 10) ? '0' + jam : jam;
+                        menit = (menit < 10) ? '0' + menit : menit;
+                        detik = (detik < 10) ? '0' + detik : detik;
+
+                        let formattedTime = jam + ':' + menit + ':' + detik;
+
+                        let tanggalFormatted = tanggal.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+                        return tanggalFormatted + ' ' + formattedTime;
+                    }
+                    return data;
+                },
+                'className': 'dt-center'
+            },
+            { "data": "approval", "className": "dt-center" },
+            { "data": "action", "className": "dt-center" }
+        ],
+        "initComplete": function() {
+            $('#selectstatus').change(function() {
+                tableMaster.ajax.url('{% url "COGM:dttable_approval" %}').load();
+            });
+            $('#nama').change(function() {
+                tableMaster.ajax.url('{% url "COGM:dttable_approval" %}').load();
+            });
+        }
+    });
+
+    function viewApprove(id) {
+        let url = '{% url "COGM:view_approval" "param1"%}'
+        url = url.replace('param1', btoa(id));
+        window.location.href = url;
+    }
+
+    function formatNumberWithCommas(number) {
+        return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }
+</script>
+
+{% endblock %}
